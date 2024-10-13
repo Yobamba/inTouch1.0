@@ -43,22 +43,20 @@ const CLIENT_SECRET = process.env.CLIENT_SECRET;
 const REDIRECT_URI = process.env.REDIRECT_URI;
 
 
-// Token Exchange Endpoint
-app.post('/api/exchange-token', async (req, res) => {
-    console.log("At least the /api/exchange-token path enpoint was hit");
-    console.log('Environment Variables:', process.env);
+const qs = require('qs'); // Import querystring library
 
+app.post('/api/exchange-token', async (req, res) => {
+    console.log("At least the /api/exchange-token path endpoint was hit");
     const { code } = req.body;
     
     try {
-        const response = await axios.post('https://api.instagram.com/oauth/access_token', null, {
-            params: {
-                client_id: CLIENT_ID,
-                client_secret: CLIENT_SECRET,
-                grant_type: 'authorization_code',
-                redirect_uri: REDIRECT_URI,
-                code: code
-            },
+        const response = await axios.post('https://api.instagram.com/oauth/access_token', qs.stringify({
+            client_id: CLIENT_ID,
+            client_secret: CLIENT_SECRET,
+            grant_type: 'authorization_code',
+            redirect_uri: REDIRECT_URI,
+            code: code
+        }), {
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded'
             }
@@ -68,13 +66,13 @@ app.post('/api/exchange-token', async (req, res) => {
         const { access_token, user_id } = response.data;
 
         // You might want to store the token securely here (e.g., in a database)
-        
         res.status(200).json({ access_token, user_id });
     } catch (error) {
         console.error('Error exchanging token:', error.response ? error.response.data : error.message);
         res.status(500).json({ error: 'Failed to exchange token' });
     }
 });
+
 
 // Send message endpoint
 app.post('/api/send-instagram-message', async (req, res) => {
