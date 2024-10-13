@@ -90,7 +90,7 @@ function App() {
           {/* Instagram Login Button */}
           <a
             className="App-link"
-            href="https://www.instagram.com/oauth/authorize?enable_fb_login=0&force_authentication=1&client_id=1063901652121985&redirect_uri=https://intouch-lvyr.onrender.com/&response_type=code&scope=instagram_business_basic%2Cinstagram_business_manage_messages%2Cinstagram_business_manage_comments%2Cinstagram_business_content_publish"
+            href="https://www.instagram.com/oauth/authorize?enable_fb_login=0&force_authentication=1&client_id=1063901652121985&redirect_uri=https://intouch1-0.onrender.com/&response_type=code&scope=instagram_business_basic%2Cinstagram_business_manage_messages%2Cinstagram_business_manage_comments%2Cinstagram_business_content_publish"
             target="_blank"
             rel="noopener noreferrer"
           >
