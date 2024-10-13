@@ -45,6 +45,7 @@ const REDIRECT_URI = process.env.REDIRECT_URI;
 
 // Token Exchange Endpoint
 app.post('/api/exchange-token', async (req, res) => {
+    console.log("At least the /api/exchange-token path enpoint was hit");
     const { code } = req.body;
     
     try {
