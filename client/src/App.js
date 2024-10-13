@@ -2,6 +2,66 @@ import React, { useState, useEffect } from 'react';
 import logo from './logo.svg';
 import './App.css';
 
+function MessageSender() {
+  const [recipientId, setRecipientId] = useState('');
+  const [messageText, setMessageText] = useState('');
+  const accessToken = 'IGQWRPX00wZA0pmQldwdjVkM0dMUE9iRmVTQS1idVFuVDhxUGxsWWlON0Q0dFdSWUFUWXMtMUJuVEZAVdHVkTVNuVWhyX1hKbFNzVTlfWVhoZAXVHanRLNGRpemp0MGY5akE1REVEcmxDeW8wWFFsSzBKS0dLVFI0cDgZD'; // Replace with your valid Instagram access token
+  const igUserId = '8436165803085530'; // Replace with your Instagram professional account ID
+
+  const handleSendMessage = async () => {
+    const url = `https://graph.instagram.com/v21.0/${igUserId}/messages`;
+    const payload = {
+      recipient: {
+        id: recipientId, // Instagram-scoped ID of the recipient
+      },
+      message: {
+        text: messageText, // The message text or link
+      },
+    };
+
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Message sent successfully:', data);
+      } else {
+        const errorData = await response.json();
+        console.error('Error sending message:', errorData);
+      }
+    } catch (error) {
+      console.error('Failed to send message:', error);
+    }
+  };
+
+  return (
+    <div>
+      <h1>Send Instagram Message</h1>
+      <input
+        type="text"
+        placeholder="Recipient Instagram ID (IGSID)"
+        value={recipientId}
+        onChange={(e) => setRecipientId(e.target.value)}
+      />
+      <textarea
+        placeholder="Type your message here..."
+        value={messageText}
+        onChange={(e) => setMessageText(e.target.value)}
+      />
+      <button onClick={handleSendMessage}>Send Message</button>
+    </div>
+  );
+}
+
+
+
 function App() {
   const [hasCode, setHasCode] = useState(false);
   const [recipientId, setRecipientId] = useState('');
@@ -66,4 +126,4 @@ function App() {
   );
 }
 
-export default App;
+export { App, MessageSender }
