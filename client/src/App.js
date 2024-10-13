@@ -3,82 +3,28 @@ import logo from './logo.svg';
 import './App.css';
 
 function App() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [accessToken, setAccessToken] = useState(null);
+  const [hasCode, setHasCode] = useState(false);
   const [recipientId, setRecipientId] = useState('');
   const [messageText, setMessageText] = useState('');
 
   useEffect(() => {
-    const checkLoginStatus = async () => {
-      // Check if there's a code parameter in the URL
-      const urlParams = new URLSearchParams(window.location.search);
-      const code = urlParams.get('code');
+    const urlParams = new URLSearchParams(window.location.search);
+    const code = urlParams.get('code');
 
-      if (code) {
-        // If there's a code, exchange it for an access token
-        try {
-          const response = await fetch('/api/exchange-token', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ code }),
-          });
-
-          if (response.ok) {
-            const data = await response.json();
-            setAccessToken(data.access_token);
-            setIsLoggedIn(true);
-            // Remove the code from the URL
-            window.history.replaceState({}, document.title, window.location.pathname);
-          } else {
-            console.error('Failed to exchange code for token');
-          }
-        } catch (error) {
-          console.error('Error exchanging code for token:', error);
-        }
-      } else {
-        // If there's no code, check if we have a stored token
-        const storedToken = localStorage.getItem('instagram_access_token');
-        if (storedToken) {
-          setAccessToken(storedToken);
-          setIsLoggedIn(true);
-        }
-      }
-    };
-
-    checkLoginStatus();
+    // If the code exists in the URL, set the state to show the messaging form
+    if (code) {
+      setHasCode(true);
+    }
   }, []);
 
-  const handleSendMessage = async () => {
-    if (!accessToken) {
-      console.error('No access token available');
-      return;
-    }
-
-    const response = await fetch('/api/send-instagram-message', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        recipientId,
-        messageText,
-        accessToken,
-      }),
-    });
-
-    if (response.ok) {
-      const data = await response.json();
-      console.log('Message sent successfully:', data);
-    } else {
-      const errorData = await response.json();
-      console.error('Error sending message:', errorData.error);
-    }
+  const handleSendMessage = () => {
+    // Message sending logic goes here
+    console.log('Recipient ID:', recipientId);
+    console.log('Message:', messageText);
   };
 
-  if (!isLoggedIn)
-     {
+  // Conditionally render the login screen or the message form based on whether there's a code in the URL
+  if (!hasCode) {
     return (
       <div className="App">
         <header className="App-header">
