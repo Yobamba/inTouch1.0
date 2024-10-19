@@ -12,20 +12,20 @@ app.use(bodyParser.json());
 // Serve static files from the React app
 app.use(express.static(path.join(__dirname, 'client/build')));
 
-// Verification token
-const VERIFY_TOKEN = "i_verify_im_him";
+// // Verification token
+// const VERIFY_TOKEN = "i_verify_im_him";
 
-// Instagram Webhook Route (GET for verification)
-app.get('/webhook', (req, res) => {
-    const verifyToken = req.query['hub.verify_token'];
-    const challenge = req.query['hub.challenge'];
+// // Instagram Webhook Route (GET for verification)
+// app.get('/webhook', (req, res) => {
+//     const verifyToken = req.query['hub.verify_token'];
+//     const challenge = req.query['hub.challenge'];
 
-    if (verifyToken === VERIFY_TOKEN) {
-        return res.status(200).send(challenge);
-    } else {
-        return res.status(403).send('Error, invalid token');
-    }
-});
+//     if (verifyToken === VERIFY_TOKEN) {
+//         return res.status(200).send(challenge);
+//     } else {
+//         return res.status(403).send('Error, invalid token');
+//     }
+// });
 
 // Create the endpoint for your webhook
 
