@@ -4,7 +4,6 @@ const path = require('path');
 const bodyParser = require('body-parser'); // Import body-parser
 const axios = require('axios');
 
-
 const app = express();
 
 // Middleware to parse JSON requests
@@ -42,7 +41,6 @@ const CLIENT_ID = process.env.CLIENT_ID;
 const CLIENT_SECRET = process.env.CLIENT_SECRET;
 const REDIRECT_URI = process.env.REDIRECT_URI;
 
-
 const qs = require('qs'); // Import querystring library
 
 app.post('/api/exchange-token', async (req, res) => {
@@ -73,7 +71,6 @@ app.post('/api/exchange-token', async (req, res) => {
     }
 });
 
-
 // Send message endpoint
 app.post('/api/send-instagram-message', async (req, res) => {
     const { igId, recipientId, messageText, accessToken } = req.body;
@@ -101,9 +98,7 @@ app.post('/api/send-instagram-message', async (req, res) => {
       console.error('Error sending message:', error.response.data);
       res.status(500).json({ error: 'Failed to send message' });
     }
-  });
-
-
+});
 
 // Handle all other requests (React app)
 app.get('*', (req, res) => {
@@ -115,4 +110,3 @@ const port = process.env.PORT || 5000;
 app.listen(port, () => {
     console.log(`Server running on port ${port}`);
 });
-

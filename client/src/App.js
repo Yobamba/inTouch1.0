@@ -5,25 +5,22 @@ import './App.css';
 function MessageSender() {
   const [recipientId, setRecipientId] = useState('');
   const [messageText, setMessageText] = useState('');
-  const accessToken = process.env.META_APP_ACCESS_TOKEN; // Access token from environment variable
-  const igUserId = '1063901652121985'; // Replace with your Instagram professional account ID
-  
+  const accessToken = process.env.REACT_APP_ACCESS_TOKEN; // Access token from environment variable
+  const igUserId = '8436165803085530'; // Replace with your Instagram professional account ID
+
   const handleSendMessage = async () => {
-    const url = `https://graph.instagram.com/v21.0/${igUserId}/messages`;
+    const url = '/api/send-instagram-message'; // Use proxy server endpoint
     const payload = {
-      recipient: {
-        id: recipientId, // Instagram-scoped ID of the recipient
-      },
-      message: {
-        text: messageText, // The message text or link
-      },
+      recipientId,
+      messageText,
+      accessToken,
+      igId: igUserId,
     };
 
     try {
       const response = await fetch(url, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${accessToken}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(payload),
