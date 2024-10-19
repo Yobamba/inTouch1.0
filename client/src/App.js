@@ -5,7 +5,7 @@ import './App.css';
 function MessageSender() {
   const [recipientId, setRecipientId] = useState('');
   const [messageText, setMessageText] = useState('');
-  const accessToken = 'IGQWRPX00wZA0pmQldwdjVkM0dMUE9iRmVTQS1idVFuVDhxUGxsWWlON0Q0dFdSWUFUWXMtMUJuVEZAVdHVkTVNuVWhyX1hKbFNzVTlfWVhoZAXVHanRLNGRpemp0MGY5akE1REVEcmxDeW8wWFFsSzBKS0dLVFI0cDgZD'; // Replace with your valid Instagram access token
+  const accessToken = process.env.REACT_APP_ACCESS_TOKEN; // Access token from environment variable
   const igUserId = '8436165803085530'; // Replace with your Instagram professional account ID
 
   const handleSendMessage = async () => {
@@ -60,12 +60,8 @@ function MessageSender() {
   );
 }
 
-
-
 function App() {
   const [hasCode, setHasCode] = useState(false);
-  const [recipientId, setRecipientId] = useState('');
-  const [messageText, setMessageText] = useState('');
 
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -76,12 +72,6 @@ function App() {
       setHasCode(true);
     }
   }, []);
-
-  const handleSendMessage = () => {
-    // Message sending logic goes here
-    console.log('Recipient ID:', recipientId);
-    console.log('Message:', messageText);
-  };
 
   // Conditionally render the login screen or the message form based on whether there's a code in the URL
   if (!hasCode) {
@@ -110,20 +100,10 @@ function App() {
   return (
     <div className="App">
       <h1>Instagram Messaging</h1>
-      <input
-        type="text"
-        placeholder="Recipient ID"
-        value={recipientId}
-        onChange={(e) => setRecipientId(e.target.value)}
-      />
-      <textarea
-        placeholder="Enter your message here..."
-        value={messageText}
-        onChange={(e) => setMessageText(e.target.value)}
-      />
-      <button onClick={handleSendMessage}>Send Message</button>
+      {/* Render MessageSender here */}
+      <MessageSender />
     </div>
   );
 }
 
-export { App, MessageSender }
+export default App;

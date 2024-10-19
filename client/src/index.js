@@ -2,7 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { NextUIProvider } from '@nextui-org/react';
 import './index.css';
-import { App, MessageSender } from './App';
+import App from './App'; // Import App as the default export
 
 import reportWebVitals from './reportWebVitals';
 
