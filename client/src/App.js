@@ -5,7 +5,7 @@ import './App.css';
 function MessageSender() {
   const [recipientId, setRecipientId] = useState('');
   const [messageText, setMessageText] = useState('');
-  const accessToken = process.env.REACT_APP_ACCESS_TOKEN; // Access token from environment variable
+  const accessToken = process.env.META_APP_ACCESS_TOKEN; // Access token from environment variable
   const igUserId = '1063901652121985'; // Replace with your Instagram professional account ID
 
   const handleSendMessage = async () => {
