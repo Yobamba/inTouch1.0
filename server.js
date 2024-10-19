@@ -15,6 +15,18 @@ app.use(express.static(path.join(__dirname, 'client/build')));
 // Verification token
 const VERIFY_TOKEN = "i_verify_im_him";
 
+// Instagram Webhook Route (GET for verification)
+app.get('/webhook', (req, res) => {
+    const verifyToken = req.query['hub.verify_token'];
+    const challenge = req.query['hub.challenge'];
+
+    if (verifyToken === VERIFY_TOKEN) {
+        return res.status(200).send(challenge);
+    } else {
+        return res.status(403).send('Error, invalid token');
+    }
+});
+
 // Create the endpoint for your webhook
 
 app.post("/webhook", (req, res) => {
@@ -22,19 +34,19 @@ app.post("/webhook", (req, res) => {
 
   console.log(`\u{1F7EA} Received webhook:`);
   console.dir(body, { depth: null });
-
   // Send a 200 OK response if this is a page webhook
 
   if (body.object === "page") {
     // Returns a '200 OK' response to all requests
     res.status(200).send("EVENT_RECEIVED");
+
     // Determine which webhooks were triggered and get sender PSIDs and locale, message content and more.
- 
+
   } else {
-      // Return a '404 Not Found' if event is not from a page subscription
-      res.sendStatus(404);
-    }
-  }); 
+    // Return a '404 Not Found' if event is not from a page subscription
+    res.sendStatus(404);
+  }
+}); 
 
 // Add support for GET requests to our webhook
 app.get("/messaging-webhook", (req, res) => {
@@ -47,7 +59,7 @@ app.get("/messaging-webhook", (req, res) => {
     // Check if a token and mode is in the query string of the request
     if (mode && token) {
       // Check the mode and token sent is correct
-      if (mode === "subscribe" && token === VERIFY_TOKEN) {
+      if (mode === "subscribe" && token === config.verifyToken) {
         // Respond with the challenge token from the request
         console.log("WEBHOOK_VERIFIED");
         res.status(200).send(challenge);
