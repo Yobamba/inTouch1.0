@@ -6,7 +6,7 @@ function MessageSender() {
   const [recipientId, setRecipientId] = useState('');
   const [messageText, setMessageText] = useState('');
   const accessToken = process.env.REACT_APP_ACCESS_TOKEN; // Access token from environment variable
-  const igUserId = '8436165803085530'; // Replace with your Instagram professional account ID
+  const igUserId = '1063901652121985'; // Replace with your Instagram professional account ID
 
   const handleSendMessage = async () => {
     const url = '/api/send-instagram-message'; // Use proxy server endpoint
