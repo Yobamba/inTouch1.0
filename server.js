@@ -41,6 +41,27 @@ app.use((req, res, buf, encoding) => {
   }
 });
 
+app.get("/webhook", (req, res) => {
+  let VERIFY_TOKEN = process.env.verifyToken || "i_verify_im_him";
+
+  // Parse the query params
+  let mode = req.query['hub.mode'];
+  let token = req.query['hub.verify_token'];
+  let challenge = req.query['hub.challenge'];
+
+  // Check if the token matches
+  if (mode && token === VERIFY_TOKEN) {
+    // Respond with the challenge value from the request
+    console.log("Webhook verified successfully!");
+    res.status(200).send(challenge);
+  } else {
+    // Respond with '403 Forbidden' if verification failed
+    console.log("Webhook verification failed.");
+    res.sendStatus(403);
+  }
+});
+
+
 // Create the endpoint for your webhook
 app.post("/webhook", (req, res) => {
   let body = req.body;
