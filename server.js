@@ -70,7 +70,7 @@ app.post("/webhook", (req, res) => {
   console.dir(body, { depth: null });
 
   // Send a 200 OK response if this is a page webhook
-  if (body.object === "page") {
+  if (body.object === "instagram") {
     res.status(200).send("EVENT_RECEIVED");
     // Determine which webhooks were triggered and get sender PSIDs and locale, message content and more.
   } else {
