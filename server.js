@@ -62,19 +62,25 @@ app.get("/webhook", (req, res) => {
 });
 
 
-// Create the endpoint for your webhook
-app.post("/webhook", (req, res) => {
-  let body = req.body;
-
-  console.log(`\u{1F7EA} Received webhook:`);
-  console.dir(body, { depth: null });
-
-  // Send a 200 OK response if this is a page webhook
-  if (body.object === "instagram") {
-    res.status(200).send("EVENT_RECEIVED");
-    // Determine which webhooks were triggered and get sender PSIDs and locale, message content and more.
+// Webhook listener route for message events
+app.post('/webhook', (req, res) => {
+  const event = req.body;
+  
+  if (event.object === 'instagram') {
+    event.entry.forEach((entry) => {
+      const changes = entry.changes;
+      changes.forEach((change) => {
+        if (change.field === 'messages') {
+          // Handle the incoming message event here
+          const messageData = change.value;
+          console.log('New message:', messageData);
+          // Store or process message as needed
+        }
+      });
+    });
+    res.status(200).send('EVENT_RECEIVED');
   } else {
-    res.sendStatus(404);
+    res.status(404).send('Event type not supported');
   }
 });
 
