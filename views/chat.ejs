@@ -32,6 +32,11 @@
             margin: 0;
             font-size: 1.5em;
         }
+        .header-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
         .psid-input {
             display: flex;
             gap: 10px;
@@ -130,6 +135,12 @@
         button:hover {
             background-color: #166fe5;
         }
+        #logoutButton {
+            background-color: #dc3545;
+        }
+        #logoutButton:hover {
+            background-color: #bb2d3b;
+        }
         .date-separator {
             text-align: center;
             margin: 20px 0;
@@ -192,10 +203,13 @@
     <div class="container">
         <div class="header">
             <h1>Chat Interface <span id="statusIndicator" class="status-indicator offline"></span></h1>
-            <div class="psid-input">
-                <input type="text" id="psidInput" placeholder="Enter PSID">
-                <button onclick="startChat()">Connect</button>
-                <button id="downloadJson">Download JSON</button>
+            <div class="header-controls">
+                <div class="psid-input">
+                    <input type="text" id="psidInput" placeholder="Enter PSID">
+                    <button onclick="startChat()">Connect</button>
+                    <button id="downloadJson">Download JSON</button>
+                </div>
+                <button id="logoutButton" onclick="logout()">Logout</button>
             </div>
         </div>
 
@@ -219,6 +233,18 @@
         let lastMessageTimestamp = null;
         let updateInterval = null;
         let isPolling = false;
+
+        function logout() {
+            fetch('/logout', {
+                method: 'POST',
+                credentials: 'same-origin'
+            }).then(() => {
+                window.location.href = '/login';
+            }).catch(error => {
+                console.error('Error logging out:', error);
+                alert('Error logging out');
+            });
+        }
 
         // Auto-expand textarea as user types
         const messageInput = document.getElementById('messageInput');

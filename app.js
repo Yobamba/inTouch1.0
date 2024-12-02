@@ -22,6 +22,8 @@ const express = require("express"),
   i18n = require("./i18n.config"),
   CustomResponse = require("./services/custom-response"),
   Conversation = require("./services/conversation"),
+  Auth = require("./services/auth"),
+  { connect: connectDb } = require("./db/connection"),
   app = express();
 
 var users = {};
@@ -41,6 +43,98 @@ app.use(express.static(path.join(path.resolve(), "public")));
 
 // Set template engine in Express
 app.set("view engine", "ejs");
+
+// Authentication routes
+app.get("/login", (req, res) => {
+  res.render("login");
+});
+
+app.post("/login", async (req, res) => {
+  try {
+    const { username, password } = req.body;
+    const result = await Auth.loginUser(username, password);
+    
+    if (result.success) {
+      res.json(result);
+    } else {
+      res.status(401).json(result);
+    }
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+});
+
+app.post("/logout", (req, res) => {
+  // In a real app, you'd clear the session/token here
+  res.json({ success: true, message: "Logged out successfully" });
+});
+
+app.get("/register", (req, res) => {
+  res.render("register");
+});
+
+app.post("/register", async (req, res) => {
+  try {
+    const { username, email, password } = req.body;
+    const result = await Auth.registerUser(username, email, password);
+    
+    if (result.success) {
+      res.json(result);
+    } else {
+      res.status(400).json(result);
+    }
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+});
+
+app.get("/recover-password", (req, res) => {
+  res.render("password-recovery");
+});
+
+app.post("/recover-password", async (req, res) => {
+  try {
+    const { email } = req.body;
+    const result = await Auth.initiatePasswordReset(email);
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+});
+
+app.post("/verify-code", async (req, res) => {
+  try {
+    const { email, code } = req.body;
+    const result = await Auth.verifyCode(email, code);
+    
+    if (result.success) {
+      res.json(result);
+    } else {
+      res.status(400).json(result);
+    }
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+});
+
+app.get("/reset-password", (req, res) => {
+  res.render("reset-password");
+});
+
+app.post("/reset-password", async (req, res) => {
+  try {
+    const { email, code, new_password } = req.body;
+    const result = await Auth.resetPassword(email, code, new_password);
+    
+    if (result.success) {
+      res.json(result);
+    } else {
+      res.status(400).json(result);
+    }
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+});
 
 // New unified chat interface
 app.get("/chat", function (req, res) {
@@ -81,8 +175,13 @@ app.post("/send-custom-message", async (req, res) => {
   }
 });
 
-// Respond with index file when a GET request is made to the homepage
+// Respond with chat interface when a GET request is made to the homepage
 app.get("/", function (_req, res) {
+  res.render("chat");
+});
+
+// Original index page now accessible at /about
+app.get("/about", function (_req, res) {
   res.render("index");
 });
 
@@ -148,9 +247,9 @@ app.post("/webhook", (req, res) => {
       entry.messaging.forEach(async function (webhookEvent) {
         // Log the PSID when a user messages the page
         if (webhookEvent.sender && webhookEvent.sender.id) {
-          console.log('\n=== IMPORTANT: YOUR PSID IS ===');
+          console.log("\n=== IMPORTANT: YOUR PSID IS ===");
           console.log(webhookEvent.sender.id);
-          console.log('=== COPY THIS VALUE ===\n');
+          console.log("=== COPY THIS VALUE ===\n");
         }
 
         // Discard uninteresting events
@@ -343,26 +442,29 @@ function verifyRequestSignature(req, res, buf) {
 // Check if all environment variables are set
 config.checkEnvVariables();
 
-// Listen for requests :)
-var listener = app.listen(config.port, function () {
-  console.log(`The app is listening on port ${listener.address().port}`);
-  if (
-    Object.keys(config.personas).length == 0 &&
-    config.appUrl &&
-    config.verifyToken
-  ) {
-    console.log(
-      "Is this the first time running?\n" +
-        "Make sure to set the both the Messenger profile, persona " +
-        "and webhook by visiting:\n" +
-        config.appUrl +
-        "/profile?mode=all&verify_token=" +
-        config.verifyToken
-    );
-  }
+// Connect to MongoDB
+connectDb().then(() => {
+  // Listen for requests
+  var listener = app.listen(config.port, function () {
+    console.log(`The app is listening on port ${listener.address().port}`);
+    if (
+      Object.keys(config.personas).length == 0 &&
+      config.appUrl &&
+      config.verifyToken
+    ) {
+      console.log(
+        "Is this the first time running?\n" +
+          "Make sure to set the both the Messenger profile, persona " +
+          "and webhook by visiting:\n" +
+          config.appUrl +
+          "/profile?mode=all&verify_token=" +
+          config.verifyToken
+      );
+    }
 
-  if (config.pageId) {
-    console.log("Test your app by messaging:");
-    console.log(`https://m.me/${config.pageId}`);
-  }
+    if (config.pageId) {
+      console.log("Test your app by messaging:");
+      console.log(`https://m.me/${config.pageId}`);
+    }
+  });
 });
