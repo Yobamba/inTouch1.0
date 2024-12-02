@@ -20,6 +20,8 @@ const express = require("express"),
   User = require("./services/user"),
   config = require("./services/config"),
   i18n = require("./i18n.config"),
+  CustomResponse = require("./services/custom-response"),
+  Conversation = require("./services/conversation"),
   app = express();
 
 var users = {};
@@ -39,6 +41,45 @@ app.use(express.static(path.join(path.resolve(), "public")));
 
 // Set template engine in Express
 app.set("view engine", "ejs");
+
+// New unified chat interface
+app.get("/chat", function (req, res) {
+  res.render("chat");
+});
+
+// Get conversation history API endpoint
+app.get("/conversation/:psid", async (req, res) => {
+  try {
+    const psid = req.params.psid;
+    const conversation = await Conversation.getConversationHistory(psid);
+    res.json(conversation);
+  } catch (error) {
+    console.error("Error getting conversation:", error);
+    res.status(500).json({ 
+      error: "Error fetching conversation",
+      details: error.message 
+    });
+  }
+});
+
+// Handle custom message submission
+app.post("/send-custom-message", async (req, res) => {
+  try {
+    const { message, psid } = req.body;
+    
+    if (!psid || !message) {
+      return res.status(400).json({
+        message: "Both PSID and message are required"
+      });
+    }
+    
+    await CustomResponse.sendCustomMessage(psid, message);
+    res.json({ message: "Message sent successfully!" });
+  } catch (error) {
+    console.error("Error sending custom message:", error);
+    res.status(500).json({ message: "Error sending message: " + error.message });
+  }
+});
 
 // Respond with index file when a GET request is made to the homepage
 app.get("/", function (_req, res) {
@@ -105,6 +146,13 @@ app.post("/webhook", (req, res) => {
 
       // Iterate over webhook events - there may be multiple
       entry.messaging.forEach(async function (webhookEvent) {
+        // Log the PSID when a user messages the page
+        if (webhookEvent.sender && webhookEvent.sender.id) {
+          console.log('\n=== IMPORTANT: YOUR PSID IS ===');
+          console.log(webhookEvent.sender.id);
+          console.log('=== COPY THIS VALUE ===\n');
+        }
+
         // Discard uninteresting events
         if ("read" in webhookEvent) {
           console.log("Got a read event");

@@ -1,34 +1,31 @@
 /**
- * Custom response handler to override default bot behavior
+ * Custom response handler for sending manual messages
  */
 
 "use strict";
 
-const Response = require("./response"),
-  GraphApi = require("./graph-api");
+const GraphApi = require("./graph-api");
 
 class CustomResponse {
-  constructor(user, webhookEvent) {
-    this.user = user;
-    this.webhookEvent = webhookEvent;
-  }
-
-  // Override the default message handler
-  handleMessage() {
+  /**
+   * Send a custom message to a specific user
+   * @param {string} psid - The Page-scoped ID of the user to send the message to
+   * @param {string} message - The message text to send
+   */
+  static async sendCustomMessage(psid, message) {
     const response = {
-      text: "Howdy customer"
+      text: message
     };
 
-    // Construct the message body
     const requestBody = {
       recipient: {
-        id: this.user.psid
+        id: psid
       },
       message: response
     };
 
     // Send message immediately without delay
-    GraphApi.callSendApi(requestBody);
+    return GraphApi.callSendApi(requestBody);
   }
 }
 
