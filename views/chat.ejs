@@ -3,6 +3,7 @@
 <head>
     <title>Chat Interface</title>
     <style>
+        /* Previous styles remain the same */
         body {
             font-family: Arial, sans-serif;
             margin: 0;
@@ -174,15 +175,26 @@
         #downloadJson:hover {
             background-color: #f0f2f5;
         }
+        .status-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-left: 8px;
+            background-color: #31a24c;
+        }
+        .status-indicator.offline {
+            background-color: #65676b;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>Chat Interface</h1>
+            <h1>Chat Interface <span id="statusIndicator" class="status-indicator offline"></span></h1>
             <div class="psid-input">
                 <input type="text" id="psidInput" placeholder="Enter PSID">
-                <button onclick="loadConversation()">Connect</button>
+                <button onclick="startChat()">Connect</button>
                 <button id="downloadJson">Download JSON</button>
             </div>
         </div>
@@ -204,6 +216,9 @@
         const PAGE_ID = "8750657048323051";
         const USER_ID = "475816382274514";
         let currentPsid = null;
+        let lastMessageTimestamp = null;
+        let updateInterval = null;
+        let isPolling = false;
 
         // Auto-expand textarea as user types
         const messageInput = document.getElementById('messageInput');
@@ -216,6 +231,26 @@
             if (event.key === 'Enter' && !event.shiftKey) {
                 event.preventDefault();
                 sendMessage();
+            }
+        }
+
+        function startChat() {
+            const psid = document.getElementById('psidInput').value;
+            if (!psid) {
+                alert('Please enter a PSID');
+                return;
+            }
+
+            currentPsid = psid;
+            document.getElementById('statusIndicator').classList.remove('offline');
+            
+            // Initial load
+            loadConversation(true);
+            
+            // Start polling for updates
+            if (!isPolling) {
+                isPolling = true;
+                updateInterval = setInterval(() => loadConversation(false), 3000);
             }
         }
 
@@ -240,8 +275,7 @@
                 if (response.ok) {
                     messageInput.value = '';
                     messageInput.style.height = 'auto';
-                    // Reload conversation to show new message
-                    loadConversation();
+                    // Message will appear in next poll
                 } else {
                     const error = await response.json();
                     alert('Error sending message: ' + error.message);
@@ -292,31 +326,40 @@
             }
         }
 
-        async function loadConversation() {
+        async function loadConversation(isInitialLoad = false) {
+            if (!currentPsid) return;
+
             try {
-                const psid = document.getElementById('psidInput').value;
-                if (!psid) {
-                    alert('Please enter a PSID');
-                    return;
+                if (isInitialLoad) {
+                    document.getElementById('loading').style.display = 'block';
+                    document.getElementById('conversation').innerHTML = '';
                 }
 
-                currentPsid = psid;
-                document.getElementById('loading').style.display = 'block';
-                document.getElementById('conversation').innerHTML = '';
-
-                const response = await fetch(`/conversation/${psid}`);
+                const response = await fetch(`/conversation/${currentPsid}`);
                 const data = await response.json();
                 
                 if (response.status !== 200) {
                     throw new Error(data.error || 'Failed to load conversation');
                 }
 
+                // Check if there are new messages
+                const latestMessageTimestamp = data.messages.length > 0 
+                    ? new Date(data.messages[data.messages.length - 1].timestamp).getTime()
+                    : null;
+
+                if (!isInitialLoad && latestMessageTimestamp === lastMessageTimestamp) {
+                    // No new messages
+                    return;
+                }
+
                 window.conversationData = data;
+                lastMessageTimestamp = latestMessageTimestamp;
 
                 const conversationDiv = document.getElementById('conversation');
                 conversationDiv.innerHTML = '';
 
                 let currentDate = '';
+                const wasScrolledToBottom = isScrolledToBottom(conversationDiv);
 
                 data.messages.forEach(msg => {
                     const messageDate = formatDateForSeparator(msg.timestamp);
@@ -329,7 +372,6 @@
                         currentDate = messageDate;
                     }
 
-                    // Swap the logic: if senderId is USER_ID, it's a user message
                     const isUserMessage = msg.senderId === USER_ID;
                     
                     const messageRow = document.createElement('div');
@@ -352,14 +394,42 @@
                     conversationDiv.appendChild(messageRow);
                 });
 
-                document.getElementById('loading').style.display = 'none';
-                conversationDiv.scrollTop = conversationDiv.scrollHeight;
+                if (isInitialLoad) {
+                    document.getElementById('loading').style.display = 'none';
+                }
+
+                // Only scroll to bottom if we were already at the bottom
+                // or if this is the initial load
+                if (isInitialLoad || wasScrolledToBottom) {
+                    conversationDiv.scrollTop = conversationDiv.scrollHeight;
+                }
             } catch (error) {
                 console.error('Error loading conversation:', error);
-                document.getElementById('conversation').innerHTML = 'Error loading conversation: ' + error.message;
-                document.getElementById('loading').style.display = 'none';
+                if (isInitialLoad) {
+                    document.getElementById('conversation').innerHTML = 'Error loading conversation: ' + error.message;
+                    document.getElementById('loading').style.display = 'none';
+                }
+                // Stop polling on error
+                stopPolling();
             }
         }
+
+        function isScrolledToBottom(element) {
+            const threshold = 50; // pixels from bottom to consider "scrolled to bottom"
+            return element.scrollHeight - element.scrollTop - element.clientHeight < threshold;
+        }
+
+        function stopPolling() {
+            if (updateInterval) {
+                clearInterval(updateInterval);
+                updateInterval = null;
+            }
+            isPolling = false;
+            document.getElementById('statusIndicator').classList.add('offline');
+        }
+
+        // Clean up when leaving the page
+        window.addEventListener('beforeunload', stopPolling);
 
         document.getElementById('downloadJson').addEventListener('click', () => {
             if (!window.conversationData) {
