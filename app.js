@@ -185,14 +185,14 @@ app.get("/about", function (_req, res) {
   res.render("index");
 });
 
-// Add support for GET requests to our webhook
+// Adding support for GET requests to our webhook
 app.get("/webhook", (req, res) => {
   // Parse the query params
   let mode = req.query["hub.mode"];
   let token = req.query["hub.verify_token"];
   let challenge = req.query["hub.challenge"];
 
-  // Check if a token and mode is in the query string of the request
+  // Checking if a token and mode is in the query string of the request
   if (mode && token) {
     // Check the mode and token sent is correct
     if (mode === "subscribe" && token === config.verifyToken) {
@@ -206,7 +206,7 @@ app.get("/webhook", (req, res) => {
   }
 });
 
-// Create the endpoint for your webhook
+// Creating the endpoint for the webhook
 app.post("/webhook", (req, res) => {
   let body = req.body;
 
