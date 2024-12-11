@@ -17,6 +17,8 @@ const express = require("express"),
   path = require("path"),
   Receive = require("./services/receive"),
   GraphApi = require("./services/graph-api"),
+  InstagramApi = require("./services/instagram-api"),
+  InstagramUsers = require("./services/instagram-users"),
   User = require("./services/user"),
   config = require("./services/config"),
   i18n = require("./i18n.config"),
@@ -65,7 +67,6 @@ app.post("/login", async (req, res) => {
 });
 
 app.post("/logout", (req, res) => {
-  // In a real app, you'd clear the session/token here
   res.json({ success: true, message: "Logged out successfully" });
 });
 
@@ -88,60 +89,112 @@ app.post("/register", async (req, res) => {
   }
 });
 
-app.get("/recover-password", (req, res) => {
-  res.render("password-recovery");
-});
-
-app.post("/recover-password", async (req, res) => {
-  try {
-    const { email } = req.body;
-    const result = await Auth.initiatePasswordReset(email);
-    res.json(result);
-  } catch (error) {
-    res.status(500).json({ success: false, message: "Server error" });
-  }
-});
-
-app.post("/verify-code", async (req, res) => {
-  try {
-    const { email, code } = req.body;
-    const result = await Auth.verifyCode(email, code);
-    
-    if (result.success) {
-      res.json(result);
-    } else {
-      res.status(400).json(result);
-    }
-  } catch (error) {
-    res.status(500).json({ success: false, message: "Server error" });
-  }
-});
-
-app.get("/reset-password", (req, res) => {
-  res.render("reset-password");
-});
-
-app.post("/reset-password", async (req, res) => {
-  try {
-    const { email, code, new_password } = req.body;
-    const result = await Auth.resetPassword(email, code, new_password);
-    
-    if (result.success) {
-      res.json(result);
-    } else {
-      res.status(400).json(result);
-    }
-  } catch (error) {
-    res.status(500).json({ success: false, message: "Server error" });
-  }
-});
-
-// New unified chat interface
+// Chat interfaces
 app.get("/chat", function (req, res) {
   res.render("chat");
 });
 
-// Get conversation history API endpoint
+app.get("/instagram-chat", function (req, res) {
+  res.render("instagram-chat");
+});
+
+// Instagram API endpoints
+app.get("/instagram/users", async (req, res) => {
+  try {
+    const users = await InstagramUsers.getUsers();
+    res.json(users);
+  } catch (error) {
+    console.error("Error getting Instagram users:", error);
+    res.status(500).json({ 
+      error: "Error fetching users",
+      details: error.message 
+    });
+  }
+});
+
+app.get("/instagram/user/:userId", async (req, res) => {
+  try {
+    const userId = req.params.userId;
+    const userProfile = await InstagramUsers.getUserById(userId);
+    res.json(userProfile);
+  } catch (error) {
+    console.error("Error getting Instagram user:", error);
+    res.status(500).json({ 
+      error: "Error fetching user profile",
+      details: error.message 
+    });
+  }
+});
+
+app.get("/instagram/conversation/:userId", async (req, res) => {
+  try {
+    const userId = req.params.userId;
+    const conversations = await InstagramApi.getConversations(userId);
+    res.json({ messages: conversations });
+  } catch (error) {
+    console.error("Error getting Instagram conversation:", error);
+    res.status(500).json({ 
+      error: "Error fetching conversation",
+      details: error.message 
+    });
+  }
+});
+
+app.post("/instagram/send-message", async (req, res) => {
+  try {
+    const { message, userId } = req.body;
+    
+    if (!userId || !message) {
+      return res.status(400).json({
+        message: "Both userId and message are required"
+      });
+    }
+    
+    await InstagramApi.sendMessage(userId, message);
+    res.json({ message: "Message sent successfully!" });
+  } catch (error) {
+    console.error("Error sending Instagram message:", error);
+    res.status(500).json({ message: "Error sending message: " + error.message });
+  }
+});
+
+// Instagram webhook endpoint
+app.post("/instagram/webhook", async (req, res) => {
+  try {
+    const body = req.body;
+
+    console.log(`\u{1F4F8} Received Instagram webhook:`);
+    console.dir(body, { depth: null });
+
+    if (body.object === "instagram") {
+      await InstagramApi.handleWebhook(body);
+      res.status(200).send("EVENT_RECEIVED");
+    } else {
+      res.sendStatus(404);
+    }
+  } catch (error) {
+    console.error("Error handling Instagram webhook:", error);
+    res.sendStatus(500);
+  }
+});
+
+// Instagram webhook verification
+app.get("/instagram/webhook", (req, res) => {
+  const mode = req.query["hub.mode"];
+  const token = req.query["hub.verify_token"];
+  const challenge = req.query["hub.challenge"];
+
+  if (mode && token) {
+    if (mode === "subscribe" && token === config.verifyToken) {
+      console.log("INSTAGRAM_WEBHOOK_VERIFIED");
+      res.status(200).send(challenge);
+    } else {
+      res.sendStatus(403);
+    }
+  }
+});
+
+// Messenger conversation endpoints
 app.get("/conversation/:psid", async (req, res) => {
   try {
     const psid = req.params.psid;
@@ -156,7 +209,6 @@ app.get("/conversation/:psid", async (req, res) => {
   }
 });
 
-// Handle custom message submission
 app.post("/send-custom-message", async (req, res) => {
   try {
     const { message, psid } = req.body;
@@ -175,53 +227,39 @@ app.post("/send-custom-message", async (req, res) => {
   }
 });
 
-// Respond with chat interface when a GET request is made to the homepage
+// Respond with index page
 app.get("/", function (_req, res) {
-  res.render("chat");
-});
-
-// Original index page now accessible at /about
-app.get("/about", function (_req, res) {
   res.render("index");
 });
 
-// Adding support for GET requests to our webhook
+// Messenger webhook verification
 app.get("/webhook", (req, res) => {
-  // Parse the query params
-  let mode = req.query["hub.mode"];
-  let token = req.query["hub.verify_token"];
-  let challenge = req.query["hub.challenge"];
+  const mode = req.query["hub.mode"];
+  const token = req.query["hub.verify_token"];
+  const challenge = req.query["hub.challenge"];
 
-  // Checking if a token and mode is in the query string of the request
   if (mode && token) {
-    // Check the mode and token sent is correct
     if (mode === "subscribe" && token === config.verifyToken) {
-      // Respond with the challenge token from the request
       console.log("WEBHOOK_VERIFIED");
       res.status(200).send(challenge);
     } else {
-      // Respond with '403 Forbidden' if verify tokens do not match
       res.sendStatus(403);
     }
   }
 });
 
-// Creating the endpoint for the webhook
+// Messenger webhook
 app.post("/webhook", (req, res) => {
   let body = req.body;
 
   console.log(`\u{1F7EA} Received webhook:`);
   console.dir(body, { depth: null });
 
-  // Check if this is an event from a page subscription
   if (body.object === "page") {
-    // Returns a '200 OK' response to all requests
     res.status(200).send("EVENT_RECEIVED");
 
-    // Iterate over each entry - there may be multiple if batched
     body.entry.forEach(async function (entry) {
       if ("changes" in entry) {
-        // Handle Page Changes event
         let receiveMessage = new Receive();
         if (entry.changes[0].field === "feed") {
           let change = entry.changes[0].value;
@@ -243,16 +281,13 @@ app.post("/webhook", (req, res) => {
         }
       }
 
-      // Iterate over webhook events - there may be multiple
       entry.messaging.forEach(async function (webhookEvent) {
-        // Log the PSID when a user messages the page
         if (webhookEvent.sender && webhookEvent.sender.id) {
           console.log("\n=== IMPORTANT: YOUR PSID IS ===");
           console.log(webhookEvent.sender.id);
           console.log("=== COPY THIS VALUE ===\n");
         }
 
-        // Discard uninteresting events
         if ("read" in webhookEvent) {
           console.log("Got a read event");
           return;
@@ -266,24 +301,19 @@ app.post("/webhook", (req, res) => {
           return;
         }
 
-        // Get the sender PSID
         let senderPsid = webhookEvent.sender.id;
-        // Get the user_ref if from Chat plugin logged in user
         let user_ref = webhookEvent.sender.user_ref;
-        // Check if user is guest from Chat plugin guest user
         let guestUser = isGuestUser(webhookEvent);
 
         if (senderPsid != null && senderPsid != undefined) {
           if (!(senderPsid in users)) {
             if (!guestUser) {
-              // Make call to UserProfile API only if user is not guest
               let user = new User(senderPsid);
               GraphApi.getUserProfile(senderPsid)
                 .then((userProfile) => {
                   user.setProfile(userProfile);
                 })
                 .catch((error) => {
-                  // The profile is unavailable
                   console.log(JSON.stringify(body));
                   console.log("Profile is unavailable:", error);
                 })
@@ -318,14 +348,12 @@ app.post("/webhook", (req, res) => {
             return receiveAndReturn(users[senderPsid], webhookEvent, false);
           }
         } else if (user_ref != null && user_ref != undefined) {
-          // Handle user_ref
           setDefaultUser(user_ref);
           return receiveAndReturn(users[user_ref], webhookEvent, true);
         }
       });
     });
   } else {
-    // Return a '404 Not Found' if event is not from a page subscription
     res.sendStatus(404);
   }
 });
@@ -364,7 +392,6 @@ app.get("/profile", (req, res) => {
   var Profile = require("./services/profile.js");
   Profile = new Profile();
 
-  // Check if a token and mode is in the query string of the request
   if (mode && token) {
     if (token === config.verifyToken) {
       if (mode == "webhook" || mode == "all") {
@@ -411,11 +438,9 @@ app.get("/profile", (req, res) => {
       }
       res.status(200).end();
     } else {
-      // Responds with '403 Forbidden' if verify tokens do not match
       res.sendStatus(403);
     }
   } else {
-    // Returns a '404 Not Found' if mode or token are missing
     res.sendStatus(404);
   }
 });

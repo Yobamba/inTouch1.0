@@ -21,7 +21,11 @@ const ENV_VARS = [
   "APP_SECRET",
   "VERIFY_TOKEN",
   "APP_URL",
-  "SHOP_URL"
+  "SHOP_URL",
+  // Instagram-specific variables
+  "INSTAGRAM_ACCOUNT_ID",
+  "INSTAGRAM_ACCESS_TOKEN",
+  "INSTAGRAM_APP_SECRET"
 ];
 
 module.exports = {
@@ -35,6 +39,11 @@ module.exports = {
   pageAccesToken: process.env.PAGE_ACCESS_TOKEN,
   appSecret: process.env.APP_SECRET,
   verifyToken: process.env.VERIFY_TOKEN,
+
+  // Instagram configuration
+  instagramAccountId: process.env.INSTAGRAM_ACCOUNT_ID,
+  instagramAccessToken: process.env.INSTAGRAM_ACCESS_TOKEN,
+  instagramAppSecret: process.env.INSTAGRAM_APP_SECRET,
 
   // URL of your app domain
   appUrl: process.env.APP_URL,
@@ -119,8 +128,8 @@ module.exports = {
     return [this.appUrl, this.shopUrl];
   },
 
-  checkEnvVariables: function () {
-    ENV_VARS.forEach(function (key) {
+  checkEnvVariables: function() {
+    ENV_VARS.forEach(function(key) {
       if (!process.env[key]) {
         console.warn("WARNING: Missing the environment variable " + key);
       } else {
