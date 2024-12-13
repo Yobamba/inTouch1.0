@@ -15,28 +15,29 @@ class InstagramConversation {
 
   static async getConversationHistory(userId) {
     try {
-      // Initialize if needed
       if (!InstagramConversation._messages) {
         InstagramConversation._messages = [];
       }
 
+      if (InstagramConversation._messages.length === 0) {
+        this.addMessage(
+          "hey now",
+          "475816382274514",
+          "992601915889347",
+          1734105040832,
+          false
+        );
+      }
+
       console.log("Getting conversation history for userId:", userId);
-      console.log("Instagram Account ID:", config.instagramAccountId);
       console.log("Current messages:", InstagramConversation._messages);
 
-      // Return stored messages
       const messages = InstagramConversation._messages
-        .filter(msg => {
-          // Include messages where:
-          // 1. User sent to page (page is recipient, user is sender)
-          // 2. Page sent to user (user is recipient, page is sender)
-          const isUserToPage = msg.senderId === userId && msg.recipientId === config.instagramAccountId;
-          const isPageToUser = msg.senderId === config.instagramAccountId && msg.recipientId === userId;
-          console.log("Message:", msg);
-          console.log("isUserToPage:", isUserToPage);
-          console.log("isPageToUser:", isPageToUser);
-          return isUserToPage || isPageToUser;
-        });
+        .filter((msg) => msg.senderId === userId || msg.recipientId === userId)
+        .map((msg) => ({
+          ...msg,
+          sender: msg.senderId === userId ? "User" : "Page"
+        }));
 
       console.log("Filtered messages:", messages);
       
@@ -50,39 +51,48 @@ class InstagramConversation {
   }
 
   static addMessage(text, senderId, recipientId, timestamp, isEcho = false) {
-    // Initialize if needed
     if (!InstagramConversation._messages) {
       InstagramConversation._messages = [];
     }
 
-    console.log("Adding message:", { text, senderId, recipientId, timestamp, isEcho });
+    console.log("Adding message:", {
+      text,
+      senderId,
+      recipientId,
+      timestamp,
+      isEcho
+    });
+
+    if (isEcho) {
+      [senderId, recipientId] = [recipientId, senderId];
+    }
 
     const message = {
       message: text,
       timestamp: timestamp || Date.now(),
-      // If it's an echo, it means the page sent it
-      sender: isEcho ? 'Page' : (senderId === config.instagramAccountId ? 'Page' : 'User'),
       senderId: senderId,
       recipientId: recipientId,
       isEcho: isEcho
     };
 
-    // Add message if it doesn't exist
-    const exists = InstagramConversation._messages.some(m => 
-      m.timestamp === message.timestamp && 
-      m.message === message.message &&
-      m.senderId === message.senderId
+    const exists = InstagramConversation._messages.some(
+      (m) =>
+        m.timestamp === message.timestamp &&
+        m.message === message.message &&
+        m.senderId === message.senderId
     );
 
     if (!exists) {
       InstagramConversation._messages.push(message);
-      console.log("Message added to conversation. Current messages:", InstagramConversation._messages);
+      console.log(
+        "Message added to conversation. Current messages:",
+        InstagramConversation._messages
+      );
     } else {
       console.log("Message already exists in conversation");
     }
   }
 
-  // For debugging
   static clearMessages() {
     InstagramConversation._messages = [];
     console.log("Cleared all messages");

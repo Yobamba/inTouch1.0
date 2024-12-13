@@ -153,7 +153,7 @@ app.post("/instagram/send-message", async (req, res) => {
     
     await InstagramApi.sendMessage(userId, message);
     // Add sent message to conversation history
-    InstagramConversation.addMessage(message, userId, config.instagramAccountId, Date.now(), false);
+    InstagramConversation.addMessage(message, config.instagramAccountId, userId, Date.now(), false);
     res.json({ message: "Message sent successfully!" });
   } catch (error) {
     console.error("Error sending Instagram message:", error);
@@ -173,6 +173,7 @@ app.post("/instagram/webhook", async (req, res) => {
       // Handle webhook data
       const msg = body.entry[0].messaging[0];
       if (msg.message) {
+        // Add message to conversation history
         InstagramConversation.addMessage(
           msg.message.text,
           msg.sender.id,
