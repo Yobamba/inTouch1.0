@@ -33,6 +33,15 @@
     clear: both;
 }
 
+.message.system {
+    background-color: #e3f2fd;
+    color: #1565c0;
+    float: none;
+    text-align: center;
+    margin: 10px auto;
+    font-size: 0.9em;
+}
+
 .platform-switch {
     margin-bottom: 20px;
 }
@@ -82,6 +91,7 @@
     border: 1px solid #ddd;
     border-radius: 5px;
     margin-bottom: 10px;
+    padding-right: 100px;
 }
 
 .send-button {
@@ -99,4 +109,18 @@
 
 .send-button:hover {
     background-color: #0073e6;
+}
+
+.webhook-info {
+    background-color: #f8f9fa;
+    border-radius: 5px;
+    padding: 15px;
+}
+
+.webhook-info pre {
+    max-height: 200px;
+    overflow-y: auto;
+    font-size: 0.85em;
+    background-color: #fff;
+    border: 1px solid #e9ecef;
 }

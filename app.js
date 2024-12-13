@@ -3,9 +3,6 @@
  *
  * This source code is licensed under the BSD-style license found in the
  * LICENSE file in the root directory of this source tree.
- *
- * Messenger For Original Coast Clothing
- * https://developers.facebook.com/docs/messenger-platform/getting-started/sample-apps/original-coast-clothing
  */
 
 "use strict";
@@ -19,6 +16,7 @@ const express = require("express"),
   GraphApi = require("./services/graph-api"),
   InstagramApi = require("./services/instagram-api"),
   InstagramUsers = require("./services/instagram-users"),
+  InstagramConversation = require("./services/instagram-conversation"),
   User = require("./services/user"),
   config = require("./services/config"),
   i18n = require("./i18n.config"),
@@ -29,6 +27,9 @@ const express = require("express"),
   app = express();
 
 var users = {};
+
+// Initialize InstagramConversation service
+const instagramConversation = new InstagramConversation();
 
 // Parse application/x-www-form-urlencoded
 app.use(
@@ -129,8 +130,8 @@ app.get("/instagram/user/:userId", async (req, res) => {
 app.get("/instagram/conversation/:userId", async (req, res) => {
   try {
     const userId = req.params.userId;
-    const conversations = await InstagramApi.getConversations(userId);
-    res.json({ messages: conversations });
+    const conversation = await InstagramConversation.getConversationHistory(userId);
+    res.json(conversation);
   } catch (error) {
     console.error("Error getting Instagram conversation:", error);
     res.status(500).json({ 
@@ -151,6 +152,8 @@ app.post("/instagram/send-message", async (req, res) => {
     }
     
     await InstagramApi.sendMessage(userId, message);
+    // Add sent message to conversation history
+    InstagramConversation.addMessage(message, userId, config.instagramAccountId, Date.now(), false);
     res.json({ message: "Message sent successfully!" });
   } catch (error) {
     console.error("Error sending Instagram message:", error);
@@ -167,6 +170,18 @@ app.post("/instagram/webhook", async (req, res) => {
     console.dir(body, { depth: null });
 
     if (body.object === "instagram") {
+      // Handle webhook data
+      const msg = body.entry[0].messaging[0];
+      if (msg.message) {
+        InstagramConversation.addMessage(
+          msg.message.text,
+          msg.sender.id,
+          msg.recipient.id,
+          msg.timestamp,
+          msg.message.is_echo || false
+        );
+      }
+      
       await InstagramApi.handleWebhook(body);
       res.status(200).send("EVENT_RECEIVED");
     } else {
@@ -229,7 +244,7 @@ app.post("/send-custom-message", async (req, res) => {
 
 // Respond with index page
 app.get("/", function (_req, res) {
-  res.render("index");
+  res.redirect("/instagram-chat");
 });
 
 // Messenger webhook verification

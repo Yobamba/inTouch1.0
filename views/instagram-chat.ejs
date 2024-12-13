@@ -6,6 +6,82 @@
     <title>Instagram Chat</title>
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
     <link rel="stylesheet" href="/css/instagram-chat.css">
+    <style>
+        .message-row {
+            display: flex;
+            width: 100%;
+            margin-bottom: 10px;
+        }
+        .message-row.sent {
+            justify-content: flex-end;
+        }
+        .message-row.received {
+            justify-content: flex-start;
+        }
+        .message-content {
+            max-width: 70%;
+            display: flex;
+            flex-direction: column;
+        }
+        .message-bubble {
+            padding: 8px 12px;
+            border-radius: 18px;
+            position: relative;
+            word-wrap: break-word;
+            margin: 2px 0;
+        }
+        .sent .message-bubble {
+            background-color: #0084ff;
+            color: white;
+            border-bottom-right-radius: 4px;
+        }
+        .received .message-bubble {
+            background-color: white;
+            color: black;
+            border-bottom-left-radius: 4px;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+        }
+        .timestamp {
+            font-size: 0.7em;
+            color: #65676b;
+            margin: 2px 8px;
+        }
+        .sent .timestamp {
+            text-align: right;
+        }
+        .received .timestamp {
+            text-align: left;
+        }
+        .date-separator {
+            text-align: center;
+            margin: 20px 0;
+            position: relative;
+        }
+        .date-separator::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 50%;
+            width: 45%;
+            height: 1px;
+            background-color: #ccd0d5;
+        }
+        .date-separator::after {
+            content: '';
+            position: absolute;
+            right: 0;
+            top: 50%;
+            width: 45%;
+            height: 1px;
+            background-color: #ccd0d5;
+        }
+        .date-text {
+            background-color: #f0f2f5;
+            padding: 0 10px;
+            color: #65676b;
+            font-size: 0.9em;
+        }
+    </style>
 </head>
 <body>
     <div class="container chat-container">
@@ -15,21 +91,20 @@
         </div>
 
         <div class="user-info">
-            <h5>Instagram User Information</h5>
-            <div id="userDetails">
-                <!-- User details will be populated here -->
+            <h5>Instagram Chat</h5>
+            <div class="form-group">
+                <label for="senderId">Sender ID (Instagram Account):</label>
+                <input type="text" class="form-control" id="senderId" value="17841460036924979" readonly>
             </div>
+            <div class="form-group">
+                <label for="recipientId">Recipient ID (Instagram Account):</label>
+                <input type="text" class="form-control" id="recipientId" value="992601915889347" readonly>
+            </div>
+            <button class="btn btn-primary" onclick="startChat()">Start Chat</button>
         </div>
 
-        <div class="user-list" id="userList">
-            <!-- User list will be populated here -->
-            <div class="text-center">Loading users...</div>
-        </div>
-
-        <div class="message-container" id="messageContainer">
-            <!-- Messages will be populated here -->
-            <div class="text-center">Please select a user to start chatting</div>
-        </div>
+        <div id="loading" class="loading">Loading conversation...</div>
+        <div id="conversation" class="message-container"></div>
 
         <div class="message-input-container">
             <input type="text" class="form-control message-input" id="messageInput" placeholder="Type your message..." disabled>
@@ -41,141 +116,212 @@
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.4/dist/umd/popper.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
     <script>
-        $(document).ready(function() {
-            let currentUserId = '';
-            let messagePollingInterval;
+        let currentUserId = null;
+        let lastMessageTimestamp = null;
+        let updateInterval = null;
+        let isPolling = false;
 
-            // Function to load Instagram users
-            function loadUsers() {
-                $.get('/instagram/users', function(users) {
-                    const userList = $('#userList');
-                    userList.empty();
+        function formatDate(timestamp) {
+            const date = new Date(timestamp);
+            const now = new Date();
+            const yesterday = new Date(now);
+            yesterday.setDate(yesterday.getDate() - 1);
 
-                    if (users.length === 0) {
-                        userList.html('<div class="text-center">No users available</div>');
-                        return;
+            const timeStr = date.toLocaleTimeString([], { 
+                hour: '2-digit', 
+                minute: '2-digit'
+            });
+
+            if (date.toDateString() === now.toDateString()) {
+                return `Today at ${timeStr}`;
+            } else if (date.toDateString() === yesterday.toDateString()) {
+                return `Yesterday at ${timeStr}`;
+            } else {
+                return `${date.toLocaleDateString()} at ${timeStr}`;
+            }
+        }
+
+        function formatDateForSeparator(timestamp) {
+            const date = new Date(timestamp);
+            const now = new Date();
+            const yesterday = new Date(now);
+            yesterday.setDate(yesterday.getDate() - 1);
+
+            if (date.toDateString() === now.toDateString()) {
+                return 'Today';
+            } else if (date.toDateString() === yesterday.toDateString()) {
+                return 'Yesterday';
+            } else {
+                return date.toLocaleDateString(undefined, { 
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                });
+            }
+        }
+
+        async function loadConversation(isInitialLoad = false) {
+            if (!currentUserId) return;
+
+            try {
+                if (isInitialLoad) {
+                    document.getElementById('loading').style.display = 'block';
+                    document.getElementById('conversation').innerHTML = '';
+                }
+
+                const response = await fetch(`/instagram/conversation/${currentUserId}`);
+                const data = await response.json();
+                
+                if (response.status !== 200) {
+                    throw new Error(data.error || 'Failed to load conversation');
+                }
+
+                // Check if there are new messages
+                const latestMessageTimestamp = data.messages.length > 0 
+                    ? new Date(data.messages[data.messages.length - 1].timestamp).getTime()
+                    : null;
+
+                if (!isInitialLoad && latestMessageTimestamp === lastMessageTimestamp) {
+                    // No new messages
+                    return;
+                }
+
+                lastMessageTimestamp = latestMessageTimestamp;
+                const conversationDiv = document.getElementById('conversation');
+                conversationDiv.innerHTML = '';
+
+                let currentDate = '';
+                const wasScrolledToBottom = isScrolledToBottom(conversationDiv);
+
+                data.messages.forEach(msg => {
+                    const messageDate = formatDateForSeparator(msg.timestamp);
+                    
+                    if (messageDate !== currentDate) {
+                        const dateDiv = document.createElement('div');
+                        dateDiv.className = 'date-separator';
+                        dateDiv.innerHTML = `<span class="date-text">${messageDate}</span>`;
+                        conversationDiv.appendChild(dateDiv);
+                        currentDate = messageDate;
                     }
 
-                    users.forEach(user => {
-                        const userItem = $('<div>')
-                            .addClass('user-item')
-                            .attr('data-user-id', user.id)
-                            .html(`
-                                <strong>${user.username}</strong><br>
-                                <small>${user.name || ''}</small>
-                            `);
-                        userList.append(userItem);
-                    });
-                }).fail(function(error) {
-                    console.error('Error loading users:', error);
-                    $('#userList').html('<div class="text-center text-danger">Error loading users</div>');
+                    const messageRow = document.createElement('div');
+                    messageRow.className = `message-row ${msg.sender === 'User' ? 'sent' : 'received'}`;
+                    
+                    const messageContent = document.createElement('div');
+                    messageContent.className = 'message-content';
+                    
+                    const messageBubble = document.createElement('div');
+                    messageBubble.className = 'message-bubble';
+                    messageBubble.textContent = msg.message;
+                    
+                    const timestampDiv = document.createElement('div');
+                    timestampDiv.className = 'timestamp';
+                    timestampDiv.textContent = formatDate(msg.timestamp);
+                    
+                    messageContent.appendChild(messageBubble);
+                    messageContent.appendChild(timestampDiv);
+                    messageRow.appendChild(messageContent);
+                    conversationDiv.appendChild(messageRow);
                 });
+
+                if (isInitialLoad) {
+                    document.getElementById('loading').style.display = 'none';
+                }
+
+                // Only scroll to bottom if we were already at the bottom
+                // or if this is the initial load
+                if (isInitialLoad || wasScrolledToBottom) {
+                    conversationDiv.scrollTop = conversationDiv.scrollHeight;
+                }
+            } catch (error) {
+                console.error('Error loading conversation:', error);
+                if (isInitialLoad) {
+                    document.getElementById('conversation').innerHTML = 'Error loading conversation: ' + error.message;
+                    document.getElementById('loading').style.display = 'none';
+                }
+                stopPolling();
+            }
+        }
+
+        function isScrolledToBottom(element) {
+            const threshold = 50; // pixels from bottom to consider "scrolled to bottom"
+            return element.scrollHeight - element.scrollTop - element.clientHeight < threshold;
+        }
+
+        function startChat() {
+            const userId = document.getElementById('senderId').value;
+            if (!userId) {
+                alert('Please enter a User ID');
+                return;
             }
 
-            // Function to add a message to the chat container
-            function addMessage(message, type) {
-                const messageDiv = $('<div>')
-                    .addClass('message ' + type)
-                    .text(message);
-                $('#messageContainer').append(messageDiv);
-                $('#messageContainer').append($('<div>').addClass('clearfix'));
-                $('#messageContainer').scrollTop($('#messageContainer')[0].scrollHeight);
+            currentUserId = userId;
+            document.getElementById('messageInput').disabled = false;
+            document.getElementById('sendButton').disabled = false;
+            
+            // Initial load
+            loadConversation(true);
+            
+            // Start polling for updates
+            if (!isPolling) {
+                isPolling = true;
+                updateInterval = setInterval(() => loadConversation(false), 3000);
             }
+        }
 
-            // Function to load conversation history
-            function loadConversation(userId) {
-                $.get('/instagram/conversation/' + userId, function(data) {
-                    $('#messageContainer').empty();
-                    if (data.messages && data.messages.length > 0) {
-                        data.messages.forEach(function(msg) {
-                            const type = msg.from === userId ? 'received' : 'sent';
-                            addMessage(msg.message, type);
-                        });
-                    } else {
-                        $('#messageContainer').html('<div class="text-center">No messages yet</div>');
-                    }
-                }).fail(function(error) {
-                    console.error('Error loading conversation:', error);
-                    $('#messageContainer').html('<div class="text-center text-danger">Error loading messages</div>');
+        async function sendMessage() {
+            const messageInput = document.getElementById('messageInput');
+            const message = messageInput.value.trim();
+            const recipientId = document.getElementById('recipientId').value;
+            
+            if (!message || !currentUserId) return;
+
+            try {
+                const response = await fetch('/instagram/send-message', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ 
+                        message,
+                        userId: recipientId // Send to page ID
+                    })
                 });
+
+                if (response.ok) {
+                    messageInput.value = '';
+                } else {
+                    const error = await response.json();
+                    alert('Error sending message: ' + error.message);
+                }
+            } catch (error) {
+                console.error('Error sending message:', error);
+                alert('Error sending message');
             }
+        }
 
-            // Function to load user details
-            function loadUserDetails(userId) {
-                $.get('/instagram/user/' + userId, function(data) {
-                    $('#userDetails').html(`
-                        <p><strong>Username:</strong> ${data.username}</p>
-                        <p><strong>Name:</strong> ${data.name || 'N/A'}</p>
-                    `);
-                }).fail(function(error) {
-                    console.error('Error loading user details:', error);
-                    $('#userDetails').html('<div class="text-danger">Error loading user details</div>');
-                });
+        function stopPolling() {
+            if (updateInterval) {
+                clearInterval(updateInterval);
+                updateInterval = null;
             }
+            isPolling = false;
+        }
 
-            // Handle user selection
-            $(document).on('click', '.user-item', function() {
-                const userId = $(this).data('user-id');
-                $('.user-item').removeClass('active');
-                $(this).addClass('active');
-                currentUserId = userId;
-                
-                // Enable message input
-                $('#messageInput').prop('disabled', false);
-                $('#sendButton').prop('disabled', false);
-                
-                // Load user details and conversation
-                loadUserDetails(userId);
-                loadConversation(userId);
-                
-                // Start polling for new messages
-                if (messagePollingInterval) {
-                    clearInterval(messagePollingInterval);
-                }
-                messagePollingInterval = setInterval(() => loadConversation(userId), 5000);
-            });
-
-            // Handle send button click
-            $('#sendButton').click(function() {
-                const message = $('#messageInput').val().trim();
-                if (message && currentUserId) {
-                    $.ajax({
-                        url: '/instagram/send-message',
-                        method: 'POST',
-                        contentType: 'application/json',
-                        data: JSON.stringify({
-                            message: message,
-                            userId: currentUserId
-                        }),
-                        success: function(response) {
-                            addMessage(message, 'sent');
-                            $('#messageInput').val('');
-                        },
-                        error: function(error) {
-                            console.error('Error sending message:', error);
-                            alert('Failed to send message');
-                        }
-                    });
-                }
-            });
-
-            // Handle enter key press
-            $('#messageInput').keypress(function(e) {
-                if (e.which == 13) {
-                    $('#sendButton').click();
-                }
-            });
-
-            // Load initial user list
-            loadUsers();
-
-            // Clean up on page unload
-            $(window).on('unload', function() {
-                if (messagePollingInterval) {
-                    clearInterval(messagePollingInterval);
-                }
-            });
+        // Handle enter key press
+        document.getElementById('messageInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                sendMessage();
+            }
         });
+
+        // Add click handler for send button
+        document.getElementById('sendButton').addEventListener('click', sendMessage);
+
+        // Clean up when leaving the page
+        window.addEventListener('beforeunload', stopPolling);
     </script>
 </body>
 </html>
