@@ -16,8 +16,8 @@ class InstagramConversation {
 
   static async getConversationHistory(userId) {
     try {
-      console.log("Getting conversation history for userId:", userId);
-      console.log("Current messages:", messages);
+      // console.log("Getting conversation history for userId:", userId);
+      // console.log("Current messages:", messages);
 
       // Return stored messages
       const filteredMessages = messages
@@ -36,7 +36,7 @@ class InstagramConversation {
           sender: msg.senderId === userId ? 'User' : 'Page'
         }));
 
-      console.log("Filtered messages:", filteredMessages);
+      // console.log("Filtered messages:", filteredMessages);
       
       return {
         messages: filteredMessages.sort((a, b) => a.timestamp - b.timestamp)
